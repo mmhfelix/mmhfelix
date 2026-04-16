@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "KidSketch",
+    "slug": "kidsketch",
+    "scheme": "kidsketch",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#FFF8F0",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kidsketch.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "KidSketch needs access to the camera so your child can turn their photos into coloring pages.",
+        "NSPhotoLibraryUsageDescription": "KidSketch needs access to your photo library so you can pick a photo to transform into a coloring page.",
+        "NSPhotoLibraryAddUsageDescription": "KidSketch saves finished coloring pages to your photo library so you can print or share them."
+      }
+    },
+    "android": {
+      "package": "com.kidsketch.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF8F0"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow KidSketch to use your camera to capture photos for coloring pages."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow KidSketch to access your photos to create coloring pages."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow KidSketch to save coloring pages to your photo library.",
+          "savePhotosPermission": "Allow KidSketch to save finished artwork to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "replicateApiToken": "",
+      "stabilityApiToken": "",
+      "revenueCatApiKey": "",
+      "posthogApiKey": ""
+    }
+  }
+}
