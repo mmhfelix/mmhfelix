@@ -1,4 +1,6 @@
-import * as FileSystem from 'expo-file-system';
+// SDK 54 changed the default export to a new File/Directory API. We're
+// using the proven legacy API path; it ships in the same package.
+import * as FileSystem from 'expo-file-system/legacy';
 
 /**
  * Thin file-system helpers for moving AI cache outputs into the app's
