@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VTC 數3 熱血操練場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=Caveat:wght@600;700&display=swap" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--canvas-bg, #F2EBD8); transition: background 0.4s; }
+  body { font-family: 'Noto Sans TC', system-ui, sans-serif; color: #14110F; }
+
+  .stage {
+    min-height: 100vh; padding: 40px 24px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 36px;
+  }
+  .deck-row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .deck-header { text-align: center; max-width: 720px; }
+  .deck-eyebrow {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: #D63A1A;
+  }
+  .deck-title {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-weight: 800; font-size: 44px; line-height: 0.95; letter-spacing: -1.5px;
+    margin: 6px 0 8px;
+  }
+  .deck-sub { font-family: 'Noto Sans TC', sans-serif; font-size: 14px; color: #3A3530; }
+
+  @keyframes hf-confetti-fall {
+    0%   { transform: translate(var(--x, 0), 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(var(--x, 0) * 3), 200px) rotate(720deg); opacity: 0; }
+  }
+  @keyframes hf-slide-up {
+    0%   { transform: translateY(100%); }
+    100% { transform: translateY(0); }
+  }
+
+  /* ── VIBE ─────────────────────────────────────────────────── */
+  body.vibe-marker { --canvas-bg: #1B3A2E; }
+  body.vibe-marker .deck-title  { color: #FAF6EE; }
+  body.vibe-marker .deck-sub    { color: #C8E0CB; }
+  body.vibe-marker .deck-eyebrow{ color: #F5E844; }
+
+  body.vibe-neon { --canvas-bg: #0E0B14; }
+  body.vibe-neon .deck-title  { color: #FAF6EE; text-shadow: 0 0 18px #FF5A36; }
+  body.vibe-neon .deck-sub    { color: #C0B8FF; }
+  body.vibe-neon .deck-eyebrow{ color: #F5E844; }
+  body.vibe-neon .hf-phone-frame { box-shadow: 0 0 24px #FF5A36, 8px 8px 0 0 #14110F !important; }
+
+  /* ── ENERGY ───────────────────────────────────────────────── */
+  body.energy-hyped .hf-phone-frame { animation: hf-shake 0.6s ease-in-out infinite alternate; }
+  body.energy-calm  .hf-phone-frame { animation: none !important; }
+  @keyframes hf-shake {
+    0%   { transform: rotate(-0.3deg) translate(-1px, 0); }
+    100% { transform: rotate( 0.3deg) translate( 1px, -1px); }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <script type="text/babel" data-presets="env,react">
+// hifi-kit.jsx — Hi-fi shōnen/manga primitives shared across all 3 screens
+// Vibes: sketch (default coral+paper), marker (chalkboard), neon (electric).
+// Energy: calm / default / hyped (more shake, sparkle, speed-lines).
+
+const HF = {
+  // Core palette
+  coral: '#FF5A36',
+  coralDeep: '#D63A1A',
+  coralSoft: '#FFE2D8',
+  ink: '#14110F',
+  inkSoft: '#3A3530',
+  paper: '#FAF6EE',
+  paperWarm: '#F2EBD8',
+  pencil: '#7C746C',
+  ghost: '#C8C0B6',
+  electric: '#F5E844',     // dark-horse: electric yellow
+  oilBlue: '#1B4FE0',
+  // Type
+  display: "'Bricolage Grotesque', 'Noto Serif TC', sans-serif",
+  body: "'Noto Sans TC', system-ui, sans-serif",
+  shout: "'Caveat', 'Kalam', cursive",
+  mono: "ui-monospace, 'SF Mono', Menlo, monospace",
+};
+
+// ─── Halftone dot pattern (used as accent texture) ─────────────────
+function HFHalftone({ color = HF.ink, size = 3, gap = 7, opacity = 0.35, style = {} }) {
+  const id = React.useMemo(() => 'ht' + Math.random().toString(36).slice(2, 8), []);
+  return (
+    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity, ...style }}>
+      <defs>
+        <pattern id={id} x="0" y="0" width={gap} height={gap} patternUnits="userSpaceOnUse">
+          <circle cx={gap / 2} cy={gap / 2} r={size / 2} fill={color} />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
+    </svg>
+  );
+}
+
+// ─── Speed lines (manga radial action lines) ───────────────────────
+function HFSpeedLines({ color = HF.ink, count = 28, opacity = 0.7, style = {} }) {
+  const lines = React.useMemo(() => Array.from({ length: count }, (_, i) => {
+    const a = (i / count) * Math.PI * 2 + Math.random() * 0.05;
+    const r1 = 90 + Math.random() * 10;
+    const r2 = 50 + Math.random() * 35;
+    return { x1: 50 + Math.cos(a) * r1, y1: 50 + Math.sin(a) * r1,
+             x2: 50 + Math.cos(a) * r2, y2: 50 + Math.sin(a) * r2,
+             w: 0.8 + Math.random() * 1.4 };
+  }), [count]);
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity, ...style }}>
+      {lines.map((l, i) => (
+        <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke={color} strokeWidth={l.w} strokeLinecap="round" />
+      ))}
+    </svg>
+  );
+}
+
+// ─── Burst / starburst (BAM-style speech callout) ──────────────────
+function HFBurst({ children, color = HF.electric, ink = HF.ink, points = 14, size = 130, rotate = -8, style = {}, onClick }) {
+  const path = React.useMemo(() => {
+    const r1 = 50, r2 = 38;
+    let d = '';
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? r1 : r2;
+      const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+      const x = 50 + Math.cos(a) * r;
+      const y = 50 + Math.sin(a) * r;
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    }
+    return d + 'Z';
+  }, [points]);
+  return (
+    <div onClick={onClick} style={{
+      position: 'relative', width: size, height: size,
+      transform: `rotate(${rotate}deg)`, cursor: onClick ? 'pointer' : 'default',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style,
+    }}>
+      <svg viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <path d={path} fill={color} stroke={ink} strokeWidth="2.5" strokeLinejoin="miter" />
+      </svg>
+      <div style={{
+        position: 'relative', textAlign: 'center', fontFamily: HF.display, fontWeight: 800,
+        color: ink, lineHeight: 0.9, padding: '0 12px',
+      }}>{children}</div>
+    </div>
+  );
+}
+
+// ─── Tilted stamp box (for badges, "L1", "GO") ────────────────────
+function HFStamp({ children, color = HF.coral, ink = HF.paper, rotate = -4, size = 'md', style = {} }) {
+  const sizes = { sm: { p: '4px 8px', f: 12 }, md: { p: '6px 12px', f: 16 }, lg: { p: '10px 18px', f: 22 } };
+  const s = sizes[size];
+  return (
+    <span style={{
+      display: 'inline-block', padding: s.p, background: color, color: ink,
+      fontFamily: HF.display, fontWeight: 800, fontSize: s.f, letterSpacing: 0.5,
+      transform: `rotate(${rotate}deg)`, border: `2.5px solid ${HF.ink}`,
+      boxShadow: `3px 3px 0 0 ${HF.ink}`, ...style,
+    }}>{children}</span>
+  );
+}
+
+// ─── Heavy button with offset shadow ──────────────────────────────
+function HFBtn({ children, primary, dark, full, size = 'md', onClick, disabled, style = {} }) {
+  const sizes = {
+    sm: { p: '8px 14px', f: 13, h: 36 },
+    md: { p: '12px 20px', f: 15, h: 48 },
+    lg: { p: '16px 24px', f: 18, h: 56 },
+  };
+  const s = sizes[size];
+  const bg = disabled ? HF.ghost : primary ? HF.coral : dark ? HF.ink : HF.paper;
+  const fg = disabled ? HF.pencil : primary ? HF.paper : dark ? HF.electric : HF.ink;
+  const [pressed, setPressed] = React.useState(false);
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onPointerLeave={() => setPressed(false)}
+      style={{
+        appearance: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+        padding: s.p, minHeight: s.h, width: full ? '100%' : 'auto',
+        background: bg, color: fg,
+        fontFamily: HF.display, fontWeight: 800, fontSize: s.f, letterSpacing: 0.3,
+        border: `2.5px solid ${HF.ink}`,
+        boxShadow: pressed ? `1px 1px 0 0 ${HF.ink}` : `4px 4px 0 0 ${HF.ink}`,
+        transform: pressed ? 'translate(3px, 3px)' : 'translate(0, 0)',
+        transition: 'transform 0.08s ease, box-shadow 0.08s ease',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        ...style,
+      }}
+    >{children}</button>
+  );
+}
+
+// ─── Heavy card with offset shadow ────────────────────────────────
+function HFCard({ children, accent, dark, padding = 16, radius = 18, style = {}, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        background: accent ? HF.coralSoft : dark ? HF.ink : HF.paper,
+        color: dark ? HF.paper : HF.ink,
+        border: `2.5px solid ${HF.ink}`,
+        borderRadius: radius,
+        boxShadow: `5px 5px 0 0 ${HF.ink}`,
+        padding,
+        cursor: onClick ? 'pointer' : 'default',
+        ...style,
+      }}
+    >{children}</div>
+  );
+}
+
+// ─── Section heading: tiny eyebrow + huge display ──────────────────
+function HFTitle({ eyebrow, children, size = 32, style = {} }) {
+  return (
+    <div style={style}>
+      {eyebrow && (
+        <div style={{
+          fontFamily: HF.mono, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase',
+          color: HF.coralDeep, marginBottom: 4,
+        }}>{eyebrow}</div>
+      )}
+      <div style={{
+        fontFamily: HF.display, fontWeight: 800, fontSize: size, lineHeight: 0.95,
+        letterSpacing: -0.5, color: HF.ink,
+      }}>{children}</div>
+    </div>
+  );
+}
+
+// ─── Phone frame (clean iOS-y bezel) ───────────────────────────────
+function HFPhone({ children, w = 360, h = 720, label, style = {} }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, ...style }}>
+      <div className="hf-phone-frame" style={{
+        width: w, height: h,
+        background: HF.paper,
+        border: `2.5px solid ${HF.ink}`,
+        borderRadius: 36,
+        boxShadow: `8px 8px 0 0 ${HF.ink}`,
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        {/* status bar */}
+        <div style={{
+          height: 36, padding: '0 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          fontFamily: HF.display, fontWeight: 700, fontSize: 13, color: HF.ink,
+        }}>
+          <span>9:41</span>
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontFamily: HF.mono, fontSize: 10 }}>●●●</span>
+          </span>
+        </div>
+        <div style={{ height: h - 36, overflow: 'hidden', position: 'relative' }}>{children}</div>
+      </div>
+      {label && (
+        <div style={{ fontFamily: HF.mono, fontSize: 11, color: HF.pencil, letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Confetti burst (one-shot) ────────────────────────────────────
+function HFConfetti({ active }) {
+  const pieces = React.useMemo(() => Array.from({ length: 24 }, () => ({
+    x: (Math.random() - 0.5) * 100,
+    y: -Math.random() * 60 - 10,
+    r: Math.random() * 360,
+    c: [HF.coral, HF.electric, HF.ink, HF.oilBlue][Math.floor(Math.random() * 4)],
+    d: 0.4 + Math.random() * 0.6,
+  })), [active]);
+  if (!active) return null;
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      {pieces.map((p, i) => (
+        <div key={i} style={{
+          position: 'absolute', left: '50%', top: '40%',
+          width: 8, height: 12, background: p.c,
+          border: `1.5px solid ${HF.ink}`,
+          transform: `translate(${p.x * 3}px, ${p.y * 3}px) rotate(${p.r}deg)`,
+          animation: `hf-confetti-fall ${p.d + 1.4}s ease-out forwards`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// Mascot character — 火柴人/圓臉 evolved into a confident manga sphere
+function HFMascot({ mood = 'pumped', size = 80, rotate = -4 }) {
+  const expressions = {
+    pumped:  { eyes: '◣ ◢', mouth: 'M30 70 Q50 88 70 70', cheek: true },
+    happy:   { eyes: '＾ ＾', mouth: 'M30 68 Q50 82 70 68', cheek: false },
+    think:   { eyes: '◔ ◔', mouth: 'M35 75 L65 75', cheek: false },
+    sad:     { eyes: 'T T', mouth: 'M30 78 Q50 65 70 78', cheek: false },
+    fire:    { eyes: '◆ ◆', mouth: 'M30 70 Q50 90 70 70', cheek: true },
+  };
+  const e = expressions[mood] || expressions.pumped;
+  return (
+    <div style={{ width: size, height: size, transform: `rotate(${rotate}deg)`, position: 'relative', flexShrink: 0 }}>
+      <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+        <circle cx="50" cy="50" r="42" fill={HF.electric} stroke={HF.ink} strokeWidth="3" />
+        {e.cheek && <>
+          <circle cx="22" cy="62" r="6" fill={HF.coral} stroke={HF.ink} strokeWidth="1.5" />
+          <circle cx="78" cy="62" r="6" fill={HF.coral} stroke={HF.ink} strokeWidth="1.5" />
+        </>}
+        <text x="50" y="55" textAnchor="middle" fontSize="18" fontWeight="800" fontFamily={HF.display} fill={HF.ink}>{e.eyes}</text>
+        <path d={e.mouth} fill="none" stroke={HF.ink} strokeWidth="3" strokeLinecap="round" />
+        {/* tuft of hair */}
+        <path d="M30 18 Q40 5 50 14 Q60 4 72 18" fill={HF.ink} />
+      </svg>
+    </div>
+  );
+}
+
+Object.assign(window, { HF, HFHalftone, HFSpeedLines, HFBurst, HFStamp, HFBtn, HFCard, HFTitle, HFPhone, HFConfetti, HFMascot });
+
+
+// tweaks-panel.jsx
+// Reusable Tweaks shell + form-control helpers.
+//
+// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
+// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
+// individual prototypes don't re-roll it. Ships a consistent set of controls so you
+// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+//
+// Usage (in an HTML file that loads React + Babel):
+//
+//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+//     "primaryColor": "#D97757",
+//     "palette": ["#D97757", "#29261b", "#f6f4ef"],
+//     "fontSize": 16,
+//     "density": "regular",
+//     "dark": false
+//   }/*EDITMODE-END*/;
+//
+//   function App() {
+//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+//     return (
+//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
+//         Hello
+//         <TweaksPanel>
+//           <TweakSection label="Typography" />
+//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
+//                        onChange={(v) => setTweak('fontSize', v)} />
+//           <TweakRadio  label="Density" value={t.density}
+//                        options={['compact', 'regular', 'comfy']}
+//                        onChange={(v) => setTweak('density', v)} />
+//           <TweakSection label="Theme" />
+//           <TweakColor  label="Primary" value={t.primaryColor}
+//                        options={['#D97757', '#2A6FDB', '#1F8A5B', '#7A5AE0']}
+//                        onChange={(v) => setTweak('primaryColor', v)} />
+//           <TweakColor  label="Palette" value={t.palette}
+//                        options={[['#D97757', '#29261b', '#f6f4ef'],
+//                                  ['#475569', '#0f172a', '#f1f5f9']]}
+//                        onChange={(v) => setTweak('palette', v)} />
+//           <TweakToggle label="Dark mode" value={t.dark}
+//                        onChange={(v) => setTweak('dark', v)} />
+//         </TweaksPanel>
+//       </div>
+//     );
+//   }
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;width:100%;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+
+  .twk-num{display:flex;align-items:center;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+`;
+
+// ── useTweaks ───────────────────────────────────────────────────────────────
+// Single source of truth for tweak values. setTweak persists via the host
+// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
+  // useState-style call doesn't write a "[object Object]" key into the persisted
+  // JSON block.
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    // Same-window signal so in-page listeners (deck-stage rail thumbnails)
+    // can react — the parent message only reaches the host, not peers.
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+// ── TweaksPanel ─────────────────────────────────────────────────────────────
+// Floating shell. Registers the protocol listener BEFORE announcing
+// availability — if the announce ran first, the host's activate could land
+// before our handler exists and the toolbar toggle would silently no-op.
+// The close button posts __edit_mode_dismissed so the host's toolbar toggle
+// flips off in lockstep; the host echoes __deactivate_edit_mode back which
+// is what actually hides the panel.
+function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  // Auto-inject a rail toggle when a <deck-stage> is on the page. The
+  // toggle drives the deck's per-viewer _railVisible via window message;
+  // state is mirrored from the same localStorage key the deck reads so
+  // the control reflects reality across reloads. The mechanism is the
+  // message — authors who want custom placement can post it directly
+  // and pass noDeckControls to suppress this one.
+  const hasDeckStage = React.useMemo(
+    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
+    [],
+  );
+  // Hide the toggle until the host has actually enabled the rail (the
+  // __omelette_rail_enabled window message, posted only when the
+  // omelette_deck_rail_enabled flag is on for this user). The initial read
+  // covers TweaksPanel mounting after the message already arrived; the
+  // listener covers the common case of mounting first.
+  const [railEnabled, setRailEnabled] = React.useState(
+    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled,
+  );
+  React.useEffect(() => {
+    if (!hasDeckStage || railEnabled) return undefined;
+    const onMsg = (e) => {
+      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [hasDeckStage, railEnabled]);
+  const [railVisible, setRailVisible] = React.useState(() => {
+    try { return localStorage.getItem('deck-stage.railVisible') !== '0'; } catch (e) { return true; }
+  });
+  const toggleRail = (on) => {
+    setRailVisible(on);
+    window.postMessage({ type: '__deck_rail_visible', on }, '*');
+  };
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-noncommentable=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>✕</button>
+        </div>
+        <div className="twk-body">
+          {children}
+          {hasDeckStage && railEnabled && !noDeckControls && (
+            <TweakSection label="Deck">
+              <TweakToggle label="Thumbnail rail" value={railVisible} onChange={toggleRail} />
+            </TweakSection>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Layout helpers ──────────────────────────────────────────────────────────
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Controls ────────────────────────────────────────────────────────────────
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  // The active value is read by pointer-move handlers attached for the lifetime
+  // of a drag — ref it so a stale closure doesn't fire onChange for every move.
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  // Segments wrap mid-word once per-segment width runs out. The track is
+  // ~248px (280 panel − 28 body pad − 4 seg pad), each button loses 12px
+  // to its own padding, and 11.5px system-ui averages ~6.3px/char — so 2
+  // options fit ~16 chars each, 3 fit ~10. Past that (or >3 options), fall
+  // back to a dropdown rather than wrap.
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    // <select> emits strings — map back to the original option value so the
+    // fallback stays type-preserving (numbers, booleans) like the segment path.
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return <TweakSelect label={label} value={value} options={options}
+                        onChange={(s) => onChange(resolve(s))} />;
+  }
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+// Relative-luminance contrast pick — checkmarks drawn over a swatch need to
+// read on both #111 and #fafafa without per-option configuration. Hex input
+// only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => (
+  <svg viewBox="0 0 14 14" aria-hidden="true">
+    <path d="M3 7.2 5.8 10 11 4.2" fill="none" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          stroke={light ? 'rgba(0,0,0,.78)' : '#fff'} />
+  </svg>
+);
+
+// TweakColor — curated color/palette picker. Each option is either a single
+// hex string or an array of 1-5 hex strings; the card adapts — a lone color
+// renders solid, a palette renders colors[0] as the hero (left ~2/3) with the
+// rest stacked in a sharp column on the right. onChange emits the
+// option in the shape it was passed (string stays string, array stays array).
+// Without options it falls back to the native color input for back-compat.
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (
+      <div className="twk-row twk-row-h">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <input type="color" className="twk-swatch" value={value}
+               onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  }
+  // Native <input type=color> emits lowercase hex per the HTML spec, so
+  // compare case-insensitively. String() guards JSON.stringify(undefined),
+  // which returns the primitive undefined (no .toLowerCase).
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (
+    <TweakRow label={label}>
+      <div className="twk-chips" role="radiogroup">
+        {options.map((o, i) => {
+          const colors = Array.isArray(o) ? o : [o];
+          const [hero, ...rest] = colors;
+          const sup = rest.slice(0, 4);
+          const on = key(o) === cur;
+          return (
+            <button key={i} type="button" className="twk-chip" role="radio"
+                    aria-checked={on} data-on={on ? '1' : '0'}
+                    aria-label={colors.join(', ')} title={colors.join(' · ')}
+                    style={{ background: hero }}
+                    onClick={() => onChange(o)}>
+              {sup.length > 0 && (
+                <span>
+                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
+                </span>
+              )}
+              {on && <__TwkCheck light={__twkIsLight(hero)} />}
+            </button>
+          );
+        })}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+
+// p1-hifi.jsx — Hi-fi home / course index
+// Manga shōnen vibe, coral + ink + electric yellow, 9 courses, only L1 unlocked.
+
+const HF_COURSES = [
+  { n: 'L1', zh: '坐標幾何', en: 'Coordinate Geometry', icon: 'axes',     open: true },
+  { n: 'L2', zh: '對稱、變換與相似', en: 'Symmetry & Transformation', icon: 'symmetry' },
+  { n: 'L3', zh: '正弦函數', en: 'Sinusoidal Function', icon: 'sine' },
+  { n: 'L4', zh: '解三角形', en: 'Solving Triangles', icon: 'triangle' },
+  { n: 'L5', zh: '離散概率分佈', en: 'Discrete Probability', icon: 'bars' },
+  { n: 'L6', zh: '正態分佈', en: 'Normal Distribution', icon: 'bell' },
+  { n: 'L7', zh: '二次方程', en: 'Quadratic Equations', icon: 'parabola' },
+  { n: 'L8', zh: '圓', en: 'Circles', icon: 'circle' },
+  { n: 'L9', zh: '軌跡', en: 'Loci', icon: 'loci' },
+];
+
+function HFCourseIcon({ kind, size = 32, color = HF.ink, strokeWidth = 2.2 }) {
+  const c = { stroke: color, strokeWidth, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const map = {
+    axes:     <g {...c}><path d="M5 21 L21 5"/><path d="M3 19 L21 19"/><path d="M5 21 L5 3"/><circle cx="9" cy="15" r="1.6" fill={color}/><circle cx="16" cy="9" r="1.6" fill={color}/></g>,
+    symmetry: <g {...c}><path d="M4 19 L9 6 L13 19 Z"/><path d="M22 19 L17 6 L13 19 Z" strokeDasharray="2.5 2"/><line x1="13" y1="3" x2="13" y2="21" strokeDasharray="2 2"/></g>,
+    sine:     <g {...c}><path d="M3 12 Q7 3 12 12 T21 12"/><line x1="3" y1="12" x2="21" y2="12" strokeDasharray="2 2" opacity="0.5"/></g>,
+    triangle: <g {...c}><path d="M4 19 L20 19 L8 5 Z"/><path d="M8 5 L8 19" strokeDasharray="2 2" opacity="0.7"/></g>,
+    bars:     <g {...c}><line x1="3" y1="20" x2="21" y2="20"/><rect x="5" y="13" width="3.5" height="7"/><rect x="10.5" y="8" width="3.5" height="12"/><rect x="16" y="11" width="3.5" height="9"/></g>,
+    bell:     <g {...c}><line x1="3" y1="19" x2="21" y2="19"/><path d="M3 19 Q8 19 9 14 Q11 4 12 4 Q13 4 15 14 Q16 19 21 19"/></g>,
+    parabola: <g {...c}><path d="M4 5 Q12 25 20 5"/><line x1="3" y1="19" x2="21" y2="19" strokeDasharray="2 2" opacity="0.5"/></g>,
+    circle:   <g {...c}><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1" fill={color}/><line x1="12" y1="12" x2="18.5" y2="9"/></g>,
+    loci:     <g {...c}><path d="M5 12 Q5 5 12 5 Q19 5 19 12" strokeDasharray="2.5 2"/><circle cx="5" cy="12" r="1.6" fill={color}/><circle cx="12" cy="5" r="1.6" fill={color}/><circle cx="19" cy="12" r="1.6" fill={color}/></g>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, display: 'block' }}>{map[kind] || map.axes}</svg>;
+}
+
+function P1Hifi({ onOpenL1 }) {
+  return (
+    <HFPhone w={360} h={780} label="主頁 / Home">
+      {/* Hero */}
+      <div style={{ position: 'relative', padding: '20px 22px 24px', background: HF.ink, color: HF.paper, overflow: 'hidden' }}>
+        <HFHalftone color={HF.coral} opacity={0.5} size={2.5} gap={6} />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.electric, marginBottom: 6 }}>VTC · DSE 數3</div>
+            <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 36, lineHeight: 0.95, letterSpacing: -1 }}>
+              熱血<br/>操練場
+            </div>
+            <div style={{ fontFamily: HF.body, fontWeight: 600, fontSize: 12, color: HF.electric, marginTop: 8 }}>
+              馬Sir 監製 · ヤル気MAX！
+            </div>
+          </div>
+          <HFMascot mood="fire" size={86} rotate={6} />
+        </div>
+        {/* Streak strip */}
+        <div style={{ position: 'relative', marginTop: 16, display: 'flex', gap: 8 }}>
+          <div style={{
+            flex: 1, padding: '8px 12px', background: HF.coral, color: HF.paper,
+            border: `2px solid ${HF.paper}`, fontFamily: HF.display, fontWeight: 800, fontSize: 13,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span>🔥 連勝</span><span style={{ fontSize: 18 }}>3 日</span>
+          </div>
+          <div style={{
+            flex: 1, padding: '8px 12px', background: HF.electric, color: HF.ink,
+            border: `2px solid ${HF.paper}`, fontFamily: HF.display, fontWeight: 800, fontSize: 13,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span>⚡ 經驗</span><span style={{ fontSize: 18 }}>240 XP</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Section eyebrow */}
+      <div style={{ padding: '20px 22px 12px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.coralDeep }}>CHAPTERS · 9 課題</div>
+          <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: HF.ink, marginTop: 2 }}>選擇下一場操練</div>
+        </div>
+        <HFStamp color={HF.electric} ink={HF.ink} rotate={-6} size="sm">NEW</HFStamp>
+      </div>
+
+      {/* Course list */}
+      <div style={{ padding: '0 22px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {HF_COURSES.map((c) => (
+          <div key={c.n}
+            onClick={c.open ? onOpenL1 : undefined}
+            style={{
+              position: 'relative',
+              background: c.open ? HF.paper : HF.paperWarm,
+              border: `2.5px solid ${HF.ink}`,
+              borderRadius: 16,
+              padding: '14px 14px 14px 12px',
+              boxShadow: c.open ? `5px 5px 0 0 ${HF.ink}` : `3px 3px 0 0 ${HF.pencil}`,
+              opacity: c.open ? 1 : 0.55,
+              cursor: c.open ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', gap: 14,
+              overflow: 'hidden',
+            }}
+          >
+            {c.open && (
+              <div style={{ position: 'absolute', top: -2, right: -2, transform: 'rotate(8deg)' }}>
+                <HFStamp color={HF.coral} ink={HF.paper} rotate={0} size="sm">START</HFStamp>
+              </div>
+            )}
+            {/* Icon tile */}
+            <div style={{
+              width: 56, height: 56, flexShrink: 0,
+              background: c.open ? HF.electric : HF.ghost,
+              border: `2.5px solid ${HF.ink}`, borderRadius: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative',
+            }}>
+              <HFCourseIcon kind={c.icon} size={32} color={HF.ink} strokeWidth={2.4} />
+              <div style={{
+                position: 'absolute', top: -8, left: -8,
+                background: HF.ink, color: HF.paper,
+                fontFamily: HF.display, fontWeight: 800, fontSize: 11,
+                padding: '2px 6px', border: `2px solid ${HF.ink}`, borderRadius: 4,
+              }}>{c.n}</div>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 17, color: HF.ink, lineHeight: 1.1 }}>{c.zh}</div>
+              <div style={{ fontFamily: HF.body, fontSize: 11, color: HF.pencil, marginTop: 3 }}>{c.en}</div>
+            </div>
+            <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: c.open ? HF.coral : HF.ghost }}>
+              {c.open ? '→' : '🔒'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </HFPhone>
+  );
+}
+
+Object.assign(window, { P1Hifi, HFCourseIcon, HF_COURSES });
+
+// p2-hifi.jsx — Hi-fi L1 Coordinate Geometry inner page
+// 3 操練卡片: A 距離/斜率/中點, B 直線方程, C 圖象與應用
+
+const L1_DRILLS = [
+  { id: 'a', n: 'A', zh: '距離 / 斜率 / 中點', en: 'Distance · Slope · Midpoint',
+    qcount: 12, mins: 8, status: 'open', tag: '入門 · 必做', color: HF.coral },
+  { id: 'b', n: 'B', zh: '直線方程', en: 'Equation of a Line',
+    qcount: 10, mins: 12, status: 'open', tag: '進階', color: HF.electric },
+  { id: 'c', n: 'C', zh: '圖象與應用', en: 'Graphs & Applications',
+    qcount: 8, mins: 15, status: 'locked', tag: '挑戰', color: HF.oilBlue },
+];
+
+function P2Hifi({ onBack, onOpenA }) {
+  return (
+    <HFPhone w={360} h={780} label="L1 · 坐標幾何">
+      {/* Top nav */}
+      <div style={{ padding: '14px 22px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onBack} style={{
+          appearance: 'none', cursor: 'pointer',
+          background: HF.paper, border: `2.5px solid ${HF.ink}`,
+          width: 38, height: 38, borderRadius: 10,
+          fontFamily: HF.display, fontWeight: 800, fontSize: 18,
+          boxShadow: `3px 3px 0 0 ${HF.ink}`,
+        }}>←</button>
+        <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.pencil }}>L1 / 9</div>
+        <div style={{ width: 38 }} />
+      </div>
+
+      {/* Hero card */}
+      <div style={{ padding: '14px 22px 16px' }}>
+        <div style={{
+          position: 'relative', overflow: 'hidden',
+          background: HF.coral, border: `2.5px solid ${HF.ink}`, borderRadius: 20,
+          boxShadow: `5px 5px 0 0 ${HF.ink}`, padding: '20px 18px',
+          color: HF.paper,
+        }}>
+          <HFSpeedLines color={HF.paper} count={20} opacity={0.18} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.electric, marginBottom: 4 }}>CHAPTER 1</div>
+              <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 30, lineHeight: 0.95, letterSpacing: -1 }}>
+                坐標幾何
+              </div>
+              <div style={{ fontFamily: HF.body, fontSize: 12, color: HF.paper, opacity: 0.9, marginTop: 6 }}>
+                Coordinate Geometry · 3 場操練
+              </div>
+            </div>
+            <HFStamp color={HF.electric} ink={HF.ink} rotate={8} size="md">L1</HFStamp>
+          </div>
+          {/* progress strip */}
+          <div style={{ position: 'relative', marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{
+              flex: 1, height: 12, background: 'rgba(0,0,0,0.25)',
+              border: `2px solid ${HF.ink}`, borderRadius: 999, overflow: 'hidden',
+            }}>
+              <div style={{ width: '0%', height: '100%', background: HF.electric }} />
+            </div>
+            <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 13 }}>0 / 30</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Drills */}
+      <div style={{ padding: '4px 22px 14px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.coralDeep }}>DRILLS · 操練</div>
+        <div style={{ fontFamily: HF.body, fontSize: 11, color: HF.pencil }}>由 A 開始 →</div>
+      </div>
+      <div style={{ padding: '0 22px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {L1_DRILLS.map((d, i) => {
+          const locked = d.status === 'locked';
+          return (
+            <div key={d.id}
+              onClick={d.id === 'a' ? onOpenA : undefined}
+              style={{
+                position: 'relative', overflow: 'hidden',
+                background: locked ? HF.paperWarm : HF.paper,
+                border: `2.5px solid ${HF.ink}`, borderRadius: 18,
+                boxShadow: locked ? `3px 3px 0 0 ${HF.pencil}` : `5px 5px 0 0 ${HF.ink}`,
+                cursor: d.id === 'a' ? 'pointer' : 'default',
+                opacity: locked ? 0.55 : 1,
+              }}>
+              {/* color band */}
+              <div style={{
+                height: 8, background: locked ? HF.ghost : d.color,
+                borderBottom: `2.5px solid ${HF.ink}`,
+              }} />
+              <div style={{ padding: '14px 16px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{
+                  width: 52, height: 52, flexShrink: 0,
+                  background: locked ? HF.ghost : d.color,
+                  border: `2.5px solid ${HF.ink}`, borderRadius: 12,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: HF.display, fontWeight: 800, fontSize: 26,
+                  color: d.color === HF.electric ? HF.ink : HF.paper,
+                  position: 'relative',
+                }}>
+                  {d.n}
+                  {locked && <div style={{
+                    position: 'absolute', top: -8, right: -8,
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: HF.paper, border: `2px solid ${HF.ink}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+                  }}>🔒</div>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontFamily: HF.mono, fontSize: 9, letterSpacing: 1,
+                      background: HF.ink, color: HF.paper, padding: '2px 6px',
+                    }}>{d.tag}</span>
+                  </div>
+                  <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 17, color: HF.ink, marginTop: 6, lineHeight: 1.15 }}>{d.zh}</div>
+                  <div style={{ fontFamily: HF.body, fontSize: 11, color: HF.pencil, marginTop: 2 }}>{d.en}</div>
+                  <div style={{ display: 'flex', gap: 14, marginTop: 8, fontFamily: HF.mono, fontSize: 10, color: HF.inkSoft }}>
+                    <span>📝 {d.qcount} 題</span>
+                    <span>⏱ ~{d.mins} 分鐘</span>
+                  </div>
+                </div>
+                <div style={{
+                  fontFamily: HF.display, fontWeight: 800, fontSize: 22,
+                  color: locked ? HF.ghost : HF.coral, alignSelf: 'center',
+                }}>{locked ? '' : '→'}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </HFPhone>
+  );
+}
+
+Object.assign(window, { P2Hifi, L1_DRILLS });
+
+// p3-hifi.jsx — Hi-fi Drill A: 距離 / 斜率 / 中點
+// Phase 1: 6-question loop + 過關畫面 (pass screen)
+
+// ─── Fraction renderer ────────────────────────────────────────
+function HFFrac({ top, bottom, size = 16, color }) {
+  const c = color || HF.ink;
+  return (
+    <span style={{
+      display: 'inline-block', verticalAlign: 'middle',
+      textAlign: 'center', lineHeight: 1.1, margin: '0 4px', fontSize: size,
+      flex: 'none',
+    }}>
+      <span style={{ display: 'block', padding: '0 6px 3px', whiteSpace: 'nowrap' }}>{top}</span>
+      <span style={{ display: 'block', height: 2, background: c, borderRadius: 2 }} />
+      <span style={{ display: 'block', padding: '3px 6px 0', whiteSpace: 'nowrap' }}>{bottom}</span>
+    </span>
+  );
+}
+
+// ─── Fill-in input box ────────────────────────────────────────
+function HFFillBox({ value, setValue, stage, expected, placeholder, disabled }) {
+  const norm = (s) => String(s).trim().replace(/[−–]/g, '-');
+  const isCorrect = stage === 'correct';
+  const isWrong = stage === 'wrong' && norm(value) !== norm(expected);
+  const bg = isCorrect ? HF.electric : isWrong ? HF.coralSoft : HF.paper;
+  const border = isWrong ? HF.coralDeep : HF.ink;
+  return (
+    <input
+      inputMode="numeric"
+      value={value}
+      disabled={disabled}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        appearance: 'none',
+        width: 64, height: 44, textAlign: 'center',
+        background: bg, color: HF.ink,
+        border: `2.5px solid ${border}`,
+        boxShadow: `3px 3px 0 0 ${HF.ink}`,
+        borderRadius: 10,
+        fontFamily: HF.display, fontWeight: 800, fontSize: 20,
+        outline: 'none', caretColor: HF.coral,
+      }}
+    />
+  );
+}
+
+// ─── Teach tabs data ──────────────────────────────────────────
+const P3_TEACH_TABS = [
+  { id: 'distance', label: '距離', en: 'Distance',
+    formula: <span>d = √[ (x₂ − x₁)² + (y₂ − y₁)² ]</span>,
+    note: '兩點間距離 Distance = √(Δx² + Δy²)' },
+  { id: 'slope', label: '斜率', en: 'Slope',
+    formula: (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+        <span>m =</span>
+        <HFFrac top={<span>y₂ − y₁</span>} bottom={<span>x₂ − x₁</span>} size={15} />
+      </span>),
+    note: '斜率 Slope = 縱差 Δy ÷ 橫差 Δx；垂直線 vertical line 斜率為 undefined' },
+  { id: 'midpoint', label: '中點', en: 'Midpoint',
+    formula: (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+        <span>M = (</span>
+        <HFFrac top={<span>x₁ + x₂</span>} bottom={<span>2</span>} size={14} />
+        <span>,</span>
+        <HFFrac top={<span>y₁ + y₂</span>} bottom={<span>2</span>} size={14} />
+        <span>)</span>
+      </span>),
+    note: '中點 Midpoint = 兩坐標各取平均值 average of both coordinates' },
+];
+
+// ─── 6-question data ──────────────────────────────────────────
+// Each question: type, labels, coordinates, correct answers, xp
+const P3_QUESTIONS = [
+  { id: 1, type: 'slope', topicZh: '斜率', topicEn: 'Slope', xp: 20,
+    zh: '求 A 與 B 的斜率', en: 'Find the slope of A and B',
+    pts: 'A ( 3, 7 )   B ( −1, 4 )',
+    answers: { a: '-3', b: '-4' },
+    hintNote: '分子 numerator 係 y₂ − y₁，分母 denominator 係 x₂ − x₁',
+  },
+  { id: 2, type: 'distance', topicZh: '距離', topicEn: 'Distance', xp: 20,
+    zh: '求 P 與 Q 的距離', en: 'Find the distance between P and Q',
+    pts: 'P ( 1, 2 )   Q ( 4, 6 )',
+    answers: { dx: '3', dy: '4' },
+    hintNote: 'Δx = x₂ − x₁，Δy = y₂ − y₁，答案 d = √(9+16) = 5',
+  },
+  { id: 3, type: 'midpoint', topicZh: '中點', topicEn: 'Midpoint', xp: 20,
+    zh: '求 E 與 F 的中點 M', en: 'Find the midpoint M of E and F',
+    pts: 'E ( −2, 4 )   F ( 6, −2 )',
+    answers: { mx: '2', my: '1' },
+    hintNote: 'x 坐標 = (−2 + 6) ÷ 2，y 坐標 = (4 + (−2)) ÷ 2',
+  },
+  { id: 4, type: 'slope', topicZh: '斜率', topicEn: 'Slope', xp: 20,
+    zh: '求 C 與 D 的斜率', en: 'Find the slope of C and D',
+    pts: 'C ( 2, −1 )   D ( 5, 5 )',
+    answers: { a: '6', b: '3' },
+    hintNote: '分子 numerator = 5 − (−1)，分母 denominator = 5 − 2',
+  },
+  { id: 5, type: 'distance', topicZh: '距離', topicEn: 'Distance', xp: 20,
+    zh: '求 R 與 S 的距離', en: 'Find the distance between R and S',
+    pts: 'R ( −3, 0 )   S ( 0, 4 )',
+    answers: { dx: '3', dy: '4' },
+    hintNote: 'Δx = 0 − (−3)，Δy = 4 − 0，答案 d = √(9+16) = 5',
+  },
+  { id: 6, type: 'midpoint', topicZh: '中點', topicEn: 'Midpoint', xp: 20,
+    zh: '求 A 與 B 的中點 M', en: 'Find the midpoint M of A and B',
+    pts: 'A ( 1, 7 )   B ( 5, 3 )',
+    answers: { mx: '3', my: '5' },
+    hintNote: 'x 坐標 = (1 + 5) ÷ 2，y 坐標 = (7 + 3) ÷ 2',
+  },
+];
+
+// ─── QuestionBody — renders fill-in layout per question type ──
+function QuestionBody({ q, vals, setVals, stage }) {
+  const set = (key) => (v) => setVals((prev) => ({ ...prev, [key]: v }));
+  const dis = stage !== 'practice';
+
+  if (q.type === 'slope') {
+    return (
+      <div style={{
+        marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 12, fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: HF.ink,
+        whiteSpace: 'nowrap',
+      }}>
+        <span style={{ flexShrink: 0 }}>m =</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <HFFillBox value={vals.a || ''} setValue={set('a')} stage={stage} expected={q.answers.a} placeholder="?" disabled={dis} />
+          <div style={{ height: 3, width: 86, background: HF.ink, borderRadius: 2 }} />
+          <HFFillBox value={vals.b || ''} setValue={set('b')} stage={stage} expected={q.answers.b} placeholder="?" disabled={dis} />
+        </div>
+      </div>
+    );
+  }
+
+  if (q.type === 'distance') {
+    return (
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, fontFamily: HF.display, fontWeight: 800, fontSize: 18, color: HF.ink }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <HFFillBox value={vals.dx || ''} setValue={set('dx')} stage={stage} expected={q.answers.dx} placeholder="Δx" disabled={dis} />
+            <span style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1, color: HF.pencil }}>Δx</span>
+          </div>
+          <span style={{ paddingBottom: 18 }}>² +</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <HFFillBox value={vals.dy || ''} setValue={set('dy')} stage={stage} expected={q.answers.dy} placeholder="Δy" disabled={dis} />
+            <span style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1, color: HF.pencil }}>Δy</span>
+          </div>
+        </div>
+        <div style={{ fontFamily: HF.body, fontSize: 12, color: HF.pencil, textAlign: 'center' }}>
+          d = √( Δx² + Δy² )
+        </div>
+      </div>
+    );
+  }
+
+  if (q.type === 'midpoint') {
+    return (
+      <div style={{ marginTop: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, fontFamily: HF.display, fontWeight: 800, fontSize: 18, color: HF.ink }}>
+        <span style={{ paddingBottom: 18 }}>M = (</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          <HFFillBox value={vals.mx || ''} setValue={set('mx')} stage={stage} expected={q.answers.mx} placeholder="x" disabled={dis} />
+          <span style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1, color: HF.pencil }}>x 坐標</span>
+        </div>
+        <span style={{ paddingBottom: 18 }}>,</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          <HFFillBox value={vals.my || ''} setValue={set('my')} stage={stage} expected={q.answers.my} placeholder="y" disabled={dis} />
+          <span style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1, color: HF.pencil }}>y 坐標</span>
+        </div>
+        <span style={{ paddingBottom: 18 }}>)</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ─── HintLine — below fill-in, only in practice stage ─────────
+function HintLine({ q }) {
+  if (q.type === 'slope') {
+    return (
+      <div style={{ marginTop: 10, textAlign: 'center', fontFamily: HF.body, fontSize: 11, color: HF.pencil, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span>提示 Hint：m =</span>
+        <HFFrac top={<span>y₂ − y₁</span>} bottom={<span>x₂ − x₁</span>} size={11} color={HF.pencil} />
+      </div>
+    );
+  }
+  if (q.type === 'distance') {
+    return (
+      <div style={{ marginTop: 10, textAlign: 'center', fontFamily: HF.body, fontSize: 11, color: HF.pencil }}>
+        提示 Hint：填入 Δx 同 Δy 嘅值
+      </div>
+    );
+  }
+  if (q.type === 'midpoint') {
+    return (
+      <div style={{ marginTop: 10, textAlign: 'center', fontFamily: HF.body, fontSize: 11, color: HF.pencil, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <span>提示 Hint：M = (</span>
+        <HFFrac top={<span>x₁+x₂</span>} bottom={<span>2</span>} size={10} color={HF.pencil} />
+        <span>,</span>
+        <HFFrac top={<span>y₁+y₂</span>} bottom={<span>2</span>} size={10} color={HF.pencil} />
+        <span>)</span>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ─── AnswerBox — correct answer shown in wrong feedback ───────
+function AnswerBox({ q }) {
+  const a = q.answers;
+  if (q.type === 'slope') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>正解 Answer：m =</span>
+        <HFFrac
+          top={<span style={{ color: HF.coralDeep }}>{a.a}</span>}
+          bottom={<span style={{ color: HF.coralDeep }}>{a.b}</span>}
+          size={13}
+        />
+      </div>
+    );
+  }
+  if (q.type === 'distance') {
+    return (
+      <span>
+        正解 Answer：Δx = <b style={{ color: HF.coralDeep }}>{a.dx}</b>，Δy = <b style={{ color: HF.coralDeep }}>{a.dy}</b>
+      </span>
+    );
+  }
+  if (q.type === 'midpoint') {
+    return (
+      <span>
+        正解 Answer：M = (<b style={{ color: HF.coralDeep }}>{a.mx}</b>, <b style={{ color: HF.coralDeep }}>{a.my}</b>)
+      </span>
+    );
+  }
+  return null;
+}
+
+// ─── checkQuestion ────────────────────────────────────────────
+function checkQuestion(q, vals) {
+  const norm = (s) => String(s || '').trim().replace(/[−–]/g, '-');
+  return Object.entries(q.answers).every(([k, v]) => norm(vals[k]) === norm(v));
+}
+
+function isComplete(q, vals) {
+  return Object.keys(q.answers).every((k) => !!(vals[k] || '').trim());
+}
+
+// ─── FeedbackCorrect ──────────────────────────────────────────
+function FeedbackCorrect({ q, qIdx, xpTotal, isLast, onNext }) {
+  return (
+    <div style={{
+      position: 'absolute', left: 0, right: 0, bottom: 0,
+      padding: '20px 18px 24px',
+      background: HF.ink, color: HF.paper,
+      borderTop: `2.5px solid ${HF.ink}`,
+      animation: 'hf-slide-up 0.35s cubic-bezier(.5,1.6,.4,1)',
+    }}>
+      <div style={{ position: 'absolute', top: -28, right: 24 }}>
+        <HFBurst color={HF.electric} ink={HF.ink} size={88} rotate={-12}>正確！</HFBurst>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <HFMascot mood="pumped" size={56} rotate={-4} />
+        <div>
+          <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 22, color: HF.electric }}>NICE！</div>
+          <div style={{ fontFamily: HF.body, fontSize: 12, color: HF.paper, opacity: 0.85, marginTop: 2 }}>
+            {q.topicZh} {q.topicEn} — 答得正確！
+          </div>
+        </div>
+      </div>
+      <div style={{
+        marginTop: 12, padding: '8px 12px',
+        background: HF.inkSoft, borderRadius: 10,
+        fontFamily: HF.mono, fontSize: 11, color: HF.electric,
+        display: 'flex', gap: 12,
+      }}>
+        <span>+{q.xp} XP</span>
+        <span>·</span>
+        <span>累計 {xpTotal} XP ⚡</span>
+        <span>·</span>
+        <span>{qIdx + 1} / 6 完成</span>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <HFBtn primary full size="lg" onClick={onNext}>
+          {isLast ? '查看成績 🏆' : '下一題 →'}
+        </HFBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── FeedbackWrong ────────────────────────────────────────────
+function FeedbackWrong({ q, onRetry }) {
+  return (
+    <div style={{
+      position: 'absolute', left: 0, right: 0, bottom: 0,
+      padding: '20px 18px 24px',
+      background: HF.coralSoft, color: HF.ink,
+      borderTop: `2.5px solid ${HF.ink}`,
+      animation: 'hf-slide-up 0.35s cubic-bezier(.5,1.6,.4,1)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <HFMascot mood="think" size={56} rotate={-4} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 18, color: HF.coralDeep }}>差少少！再試一次</div>
+          <div style={{ fontFamily: HF.body, fontSize: 12, color: HF.inkSoft, marginTop: 4 }}>
+            {q.hintNote}
+          </div>
+        </div>
+      </div>
+      <div style={{
+        marginTop: 10, padding: '10px 12px',
+        background: HF.paper, border: `2px dashed ${HF.coralDeep}`,
+        borderRadius: 10, fontFamily: HF.display, fontWeight: 700, fontSize: 13, color: HF.ink,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap',
+      }}>
+        <AnswerBox q={q} />
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <HFBtn primary full size="lg" onClick={onRetry}>再試一次 🔥</HFBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── PassScreen — 過關畫面 ─────────────────────────────────────
+function PassScreen({ xpTotal, onBack }) {
+  const [confetti, setConfetti] = React.useState(true);
+  React.useEffect(() => {
+    const t = setTimeout(() => setConfetti(false), 2200);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: HF.ink,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'flex-start',
+      overflow: 'hidden',
+    }}>
+      <HFSpeedLines color={HF.electric} count={24} opacity={0.18} />
+      <HFConfetti active={confetti} />
+
+      {/* Top stamp */}
+      <div style={{ position: 'relative', marginTop: 48, display: 'flex', justifyContent: 'center' }}>
+        <HFStamp color={HF.electric} ink={HF.ink} rotate={-6} size="lg">CLEAR!</HFStamp>
+      </div>
+
+      {/* Main title */}
+      <div style={{ position: 'relative', marginTop: 20, textAlign: 'center', padding: '0 24px' }}>
+        <div style={{ fontFamily: HF.mono, fontSize: 11, letterSpacing: 2, color: HF.coral, marginBottom: 6 }}>
+          操練 A · 距離 / 斜率 / 中點
+        </div>
+        <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 48, lineHeight: 0.9, color: HF.electric, letterSpacing: -2 }}>
+          過關！
+        </div>
+        <div style={{ fontFamily: HF.body, fontSize: 13, color: HF.paper, opacity: 0.8, marginTop: 8 }}>
+          Drill A Complete — All 6 questions done!
+        </div>
+      </div>
+
+      {/* Mascot */}
+      <div style={{ position: 'relative', marginTop: 24 }}>
+        <HFMascot mood="fire" size={100} rotate={8} />
+      </div>
+
+      {/* XP card */}
+      <div style={{ position: 'relative', marginTop: 20, width: 'calc(100% - 48px)' }}>
+        <div style={{
+          background: HF.inkSoft, border: `2.5px solid ${HF.electric}`,
+          borderRadius: 16, padding: '16px 20px',
+          boxShadow: `4px 4px 0 0 ${HF.electric}`,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-around', gap: 8 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1.5, color: HF.ghost, marginBottom: 4 }}>XP EARNED</div>
+              <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 36, color: HF.electric, lineHeight: 1 }}>+{xpTotal}</div>
+            </div>
+            <div style={{ width: '1.5px', background: HF.pencil, alignSelf: 'stretch' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1.5, color: HF.ghost, marginBottom: 4 }}>QUESTIONS</div>
+              <div style={{ fontFamily: HF.display, fontWeight: 800, fontSize: 36, color: HF.paper, lineHeight: 1 }}>6 / 6</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 12, padding: '8px 10px', background: HF.ink, borderRadius: 8, fontFamily: HF.mono, fontSize: 11, color: HF.electric, textAlign: 'center', letterSpacing: 0.5 }}>
+            🔥 連勝繼續！下一關等緊你
+          </div>
+        </div>
+      </div>
+
+      {/* Topic badges */}
+      <div style={{ position: 'relative', marginTop: 16, display: 'flex', gap: 8 }}>
+        {['距離 Distance', '斜率 Slope', '中點 Midpoint'].map((t, i) => (
+          <div key={i} style={{
+            background: HF.coral, color: HF.paper,
+            border: `2px solid ${HF.paper}`,
+            padding: '5px 10px',
+            fontFamily: HF.display, fontWeight: 800, fontSize: 11,
+            boxShadow: `2px 2px 0 0 ${HF.electric}`,
+          }}>✓ {t}</div>
+        ))}
+      </div>
+
+      {/* CTA */}
+      <div style={{ position: 'relative', marginTop: 'auto', width: 'calc(100% - 36px)', paddingBottom: 28 }}>
+        <HFBtn dark full size="lg" onClick={onBack}>← 返回操練選擇</HFBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── P3Hifi — main component ──────────────────────────────────
+function P3Hifi({ onBack }) {
+  const [tab, setTab] = React.useState('slope');
+  const [qIdx, setQIdx] = React.useState(0);
+  const [stage, setStage] = React.useState('practice'); // practice | correct | wrong
+  const [vals, setVals] = React.useState({});
+  const [xpTotal, setXpTotal] = React.useState(0);
+  const [showConfetti, setShowConfetti] = React.useState(false);
+  const [showPass, setShowPass] = React.useState(false);
+
+  const q = P3_QUESTIONS[qIdx];
+  const isLast = qIdx === P3_QUESTIONS.length - 1;
+  const progressPct = ((qIdx + (stage === 'correct' ? 1 : 0)) / P3_QUESTIONS.length) * 100;
+
+  // Auto-switch teach tab to match current question type
+  React.useEffect(() => {
+    setTab(q.type);
+  }, [qIdx]);
+
+  const tabObj = P3_TEACH_TABS.find((t) => t.id === tab);
+
+  const submit = () => {
+    if (checkQuestion(q, vals)) {
+      setStage('correct');
+      setXpTotal((x) => x + q.xp);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1800);
+    } else {
+      setStage('wrong');
+    }
+  };
+
+  const retry = () => {
+    setVals({});
+    setStage('practice');
+  };
+
+  const nextQuestion = () => {
+    if (isLast) {
+      setShowPass(true);
+    } else {
+      setQIdx((i) => i + 1);
+      setVals({});
+      setStage('practice');
+    }
+  };
+
+  return (
+    <HFPhone w={360} h={780} label="操練 A · 距離 / 斜率 / 中點">
+      {showPass && <PassScreen xpTotal={xpTotal} onBack={onBack} />}
+
+      {/* Top nav with progress bar */}
+      <div style={{ padding: '12px 18px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={onBack} style={{
+          appearance: 'none', cursor: 'pointer',
+          background: HF.paper, border: `2.5px solid ${HF.ink}`,
+          width: 36, height: 36, borderRadius: 10,
+          fontFamily: HF.display, fontWeight: 800, fontSize: 16,
+          boxShadow: `3px 3px 0 0 ${HF.ink}`, flexShrink: 0,
+        }}>←</button>
+        <div style={{
+          flex: 1, height: 14, background: HF.paper,
+          border: `2.5px solid ${HF.ink}`, borderRadius: 999, overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${progressPct}%`, height: '100%', background: HF.coral,
+            transition: 'width 0.5s cubic-bezier(.5,1.6,.4,1)',
+          }} />
+        </div>
+        <div style={{ fontFamily: HF.mono, fontSize: 11, color: HF.ink, fontWeight: 700, flexShrink: 0 }}>
+          {qIdx + (stage === 'correct' ? 1 : 0)} / 6
+        </div>
+      </div>
+
+      {/* Teach tabs */}
+      <div style={{ padding: '8px 18px 12px' }}>
+        <div style={{ display: 'flex', gap: 6, background: HF.ink, padding: 4, border: `2.5px solid ${HF.ink}`, borderRadius: 12 }}>
+          {P3_TEACH_TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, appearance: 'none', cursor: 'pointer',
+              padding: '8px 6px', borderRadius: 8, border: 'none',
+              background: tab === t.id ? HF.electric : 'transparent',
+              color: tab === t.id ? HF.ink : HF.paper,
+              fontFamily: HF.display, fontWeight: 800, fontSize: 13, letterSpacing: 0.3,
+              transition: 'background 0.15s ease',
+              outline: q.type === t.id && tab !== t.id ? `2px solid ${HF.coral}` : 'none',
+              outlineOffset: -2,
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* Formula card */}
+        <div style={{
+          marginTop: 10, padding: '12px 14px',
+          background: HF.paperWarm, border: `2.5px solid ${HF.ink}`, borderRadius: 12,
+          boxShadow: `3px 3px 0 0 ${HF.ink}`,
+        }}>
+          <div style={{ fontFamily: HF.mono, fontSize: 9, letterSpacing: 1.5, color: HF.coralDeep }}>
+            {tabObj.label} · {tabObj.en.toUpperCase()} · 公式 FORMULA
+          </div>
+          <div style={{ fontFamily: HF.display, fontWeight: 700, fontSize: 17, color: HF.ink, marginTop: 6, lineHeight: 1.3 }}>
+            {tabObj.formula}
+          </div>
+          <div style={{ fontFamily: HF.body, fontSize: 11, color: HF.inkSoft, marginTop: 6 }}>{tabObj.note}</div>
+        </div>
+      </div>
+
+      {/* Question card */}
+      <div style={{ padding: '4px 18px' }}>
+        <div style={{
+          position: 'relative', overflow: 'hidden',
+          background: HF.paper, border: `2.5px solid ${HF.ink}`, borderRadius: 18,
+          boxShadow: `5px 5px 0 0 ${HF.ink}`, padding: '16px 16px 18px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <div style={{ fontFamily: HF.mono, fontSize: 10, letterSpacing: 2, color: HF.coralDeep }}>
+              QUESTION {qIdx + 1} / 6
+            </div>
+            <HFStamp color={HF.electric} ink={HF.ink} rotate={-4} size="sm">{q.topicEn.toUpperCase()}</HFStamp>
+          </div>
+
+          <div style={{ fontFamily: HF.display, fontWeight: 700, fontSize: 16, color: HF.ink, marginTop: 8, lineHeight: 1.3 }}>
+            {q.zh}
+            <span style={{ display: 'block', fontFamily: HF.body, fontWeight: 500, fontSize: 11, color: HF.pencil, marginTop: 2, letterSpacing: 0.2 }}>
+              {q.en}
+            </span>
+          </div>
+
+          <div style={{
+            marginTop: 10, padding: '10px 12px',
+            background: HF.coralSoft, border: `2px dashed ${HF.coralDeep}`,
+            borderRadius: 10, fontFamily: HF.display, fontWeight: 800, fontSize: 17,
+            color: HF.ink, textAlign: 'center', letterSpacing: 0.5,
+          }}>
+            {q.pts}
+          </div>
+
+          <QuestionBody q={q} vals={vals} setVals={setVals} stage={stage} />
+
+          {stage === 'practice' && <HintLine q={q} />}
+
+          {stage === 'practice' && (
+            <div style={{ marginTop: 16 }}>
+              <HFBtn primary full size="lg" onClick={submit} disabled={!isComplete(q, vals)}>
+                送出 ⚡
+              </HFBtn>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {stage === 'correct' && (
+        <FeedbackCorrect q={q} qIdx={qIdx} xpTotal={xpTotal} isLast={isLast} onNext={nextQuestion} />
+      )}
+      {stage === 'wrong' && (
+        <FeedbackWrong q={q} onRetry={retry} />
+      )}
+
+      <HFConfetti active={showConfetti} />
+    </HFPhone>
+  );
+}
+
+Object.assign(window, { P3Hifi, HFFrac, HFFillBox });
+
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "vibe": "sketch",
+      "energy": "calm"
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      // screens: 'all' | 'p1' | 'p2' | 'p3'
+      const [screen, setScreen] = React.useState('all');
+
+      React.useEffect(() => {
+        document.body.classList.remove('vibe-sketch', 'vibe-marker', 'vibe-neon');
+        document.body.classList.add('vibe-' + tweaks.vibe);
+      }, [tweaks.vibe]);
+
+      React.useEffect(() => {
+        document.body.classList.remove('energy-default', 'energy-calm', 'energy-hyped');
+        document.body.classList.add('energy-' + tweaks.energy);
+      }, [tweaks.energy]);
+
+      const goP2 = () => setScreen('p2');
+      const goP3 = () => setScreen('p3');
+      const goBackToP1 = () => setScreen('p1');
+      const goBackToP2 = () => setScreen('p2');
+
+      return (
+        <React.Fragment>
+          <div className="stage">
+            <div className="deck-header">
+              <div className="deck-eyebrow">VTC · DSE 數3 · 馬Sir 監製</div>
+              <div className="deck-title">熱血操練場 — 高保真原型</div>
+              <div className="deck-sub">
+                P1 主頁 → P2 L1 課題 → P3 操練 A（6 題 loop + 過關畫面）
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: '全部 All' },
+                  { id: 'p1',  label: 'P1 主頁' },
+                  { id: 'p2',  label: 'P2 L1 內頁' },
+                  { id: 'p3',  label: 'P3 操練 A' },
+                ].map((s) => (
+                  <button key={s.id} onClick={() => setScreen(s.id)} style={{
+                    appearance: 'none', cursor: 'pointer',
+                    padding: '8px 14px', minHeight: 36,
+                    background: screen === s.id ? '#FF5A36' : '#FAF6EE',
+                    color:      screen === s.id ? '#FAF6EE' : '#14110F',
+                    border: '2.5px solid #14110F', borderRadius: 10,
+                    fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: 13,
+                    boxShadow: screen === s.id ? '2px 2px 0 0 #14110F' : '4px 4px 0 0 #14110F',
+                    transform:  screen === s.id ? 'translate(2px, 2px)' : 'none',
+                  }}>{s.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="deck-row">
+              {(screen === 'all' || screen === 'p1') && <P1Hifi onOpenL1={goP2} />}
+              {(screen === 'all' || screen === 'p2') && <P2Hifi onBack={goBackToP1} onOpenA={goP3} />}
+              {(screen === 'all' || screen === 'p3') && <P3Hifi onBack={goBackToP2} />}
+            </div>
+          </div>
+
+          <TweaksPanel title="Tweaks · 高保真探索">
+            <TweakSection label="Vibe · 整體氛圍" />
+            <TweakRadio
+              label="風格"
+              value={tweaks.vibe}
+              options={['sketch', 'marker', 'neon']}
+              onChange={(v) => setTweak('vibe', v)}
+            />
+            <TweakSection label="Energy · 動感" />
+            <TweakRadio
+              label="氣氛"
+              value={tweaks.energy}
+              options={['calm', 'default', 'hyped']}
+              onChange={(v) => setTweak('energy', v)}
+            />
+          </TweaksPanel>
+        </React.Fragment>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  
+  </script>
+</body>
+</html>
