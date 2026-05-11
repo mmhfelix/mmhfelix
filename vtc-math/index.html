@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VTC 數3 熱血操練場 — 高保真原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=Caveat:wght@600;700&display=swap" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--canvas-bg, #F2EBD8); transition: background 0.4s; }
+  body { font-family: 'Noto Sans TC', system-ui, sans-serif; color: #14110F; }
+
+  .stage {
+    min-height: 100vh; padding: 40px 24px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 36px;
+  }
+  .deck-row {
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .deck-header { text-align: center; max-width: 720px; }
+  .deck-eyebrow {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: #D63A1A;
+  }
+  .deck-title {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-weight: 800; font-size: 44px; line-height: 0.95; letter-spacing: -1.5px;
+    margin: 6px 0 8px;
+  }
+  .deck-sub { font-family: 'Noto Sans TC', sans-serif; font-size: 14px; color: #3A3530; }
+
+  @keyframes hf-confetti-fall {
+    0%   { transform: translate(var(--x, 0), 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(var(--x, 0) * 3), 200px) rotate(720deg); opacity: 0; }
+  }
+  @keyframes hf-slide-up {
+    0%   { transform: translateY(100%); }
+    100% { transform: translateY(0); }
+  }
+
+  /* ── VIBE ─────────────────────────────────────────────────── */
+  body.vibe-marker { --canvas-bg: #1B3A2E; }
+  body.vibe-marker .deck-title  { color: #FAF6EE; }
+  body.vibe-marker .deck-sub    { color: #C8E0CB; }
+  body.vibe-marker .deck-eyebrow{ color: #F5E844; }
+
+  body.vibe-neon { --canvas-bg: #0E0B14; }
+  body.vibe-neon .deck-title  { color: #FAF6EE; text-shadow: 0 0 18px #FF5A36; }
+  body.vibe-neon .deck-sub    { color: #C0B8FF; }
+  body.vibe-neon .deck-eyebrow{ color: #F5E844; }
+  body.vibe-neon .hf-phone-frame { box-shadow: 0 0 24px #FF5A36, 8px 8px 0 0 #14110F !important; }
+
+  /* ── ENERGY ───────────────────────────────────────────────── */
+  body.energy-hyped .hf-phone-frame { animation: hf-shake 0.6s ease-in-out infinite alternate; }
+  body.energy-calm  .hf-phone-frame { animation: none !important; }
+  @keyframes hf-shake {
+    0%   { transform: rotate(-0.3deg) translate(-1px, 0); }
+    100% { transform: rotate( 0.3deg) translate( 1px, -1px); }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+    integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+    crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+    integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+    crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+    integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+    crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="hifi-kit.jsx"></script>
+  <script type="text/babel" src="p1-hifi.jsx"></script>
+  <script type="text/babel" src="p2-hifi.jsx"></script>
+  <script type="text/babel" src="p3-hifi.jsx"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "vibe": "sketch",
+      "energy": "calm"
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      // screens: 'all' | 'p1' | 'p2' | 'p3'
+      const [screen, setScreen] = React.useState('all');
+
+      React.useEffect(() => {
+        document.body.classList.remove('vibe-sketch', 'vibe-marker', 'vibe-neon');
+        document.body.classList.add('vibe-' + tweaks.vibe);
+      }, [tweaks.vibe]);
+
+      React.useEffect(() => {
+        document.body.classList.remove('energy-default', 'energy-calm', 'energy-hyped');
+        document.body.classList.add('energy-' + tweaks.energy);
+      }, [tweaks.energy]);
+
+      const goP2 = () => setScreen('p2');
+      const goP3 = () => setScreen('p3');
+      const goBackToP1 = () => setScreen('p1');
+      const goBackToP2 = () => setScreen('p2');
+
+      return (
+        <React.Fragment>
+          <div className="stage">
+            <div className="deck-header">
+              <div className="deck-eyebrow">VTC · DSE 數3 · 馬Sir 監製</div>
+              <div className="deck-title">熱血操練場 — 高保真原型</div>
+              <div className="deck-sub">
+                P1 主頁 → P2 L1 課題 → P3 操練 A（6 題 loop + 過關畫面）
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: '全部 All' },
+                  { id: 'p1',  label: 'P1 主頁' },
+                  { id: 'p2',  label: 'P2 L1 內頁' },
+                  { id: 'p3',  label: 'P3 操練 A' },
+                ].map((s) => (
+                  <button key={s.id} onClick={() => setScreen(s.id)} style={{
+                    appearance: 'none', cursor: 'pointer',
+                    padding: '8px 14px', minHeight: 36,
+                    background: screen === s.id ? '#FF5A36' : '#FAF6EE',
+                    color:      screen === s.id ? '#FAF6EE' : '#14110F',
+                    border: '2.5px solid #14110F', borderRadius: 10,
+                    fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: 13,
+                    boxShadow: screen === s.id ? '2px 2px 0 0 #14110F' : '4px 4px 0 0 #14110F',
+                    transform:  screen === s.id ? 'translate(2px, 2px)' : 'none',
+                  }}>{s.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="deck-row">
+              {(screen === 'all' || screen === 'p1') && <P1Hifi onOpenL1={goP2} />}
+              {(screen === 'all' || screen === 'p2') && <P2Hifi onBack={goBackToP1} onOpenA={goP3} />}
+              {(screen === 'all' || screen === 'p3') && <P3Hifi onBack={goBackToP2} />}
+            </div>
+          </div>
+
+          <TweaksPanel title="Tweaks · 高保真探索">
+            <TweakSection label="Vibe · 整體氛圍" />
+            <TweakRadio
+              label="風格"
+              value={tweaks.vibe}
+              options={['sketch', 'marker', 'neon']}
+              onChange={(v) => setTweak('vibe', v)}
+            />
+            <TweakSection label="Energy · 動感" />
+            <TweakRadio
+              label="氣氛"
+              value={tweaks.energy}
+              options={['calm', 'default', 'hyped']}
+              onChange={(v) => setTweak('energy', v)}
+            />
+          </TweaksPanel>
+        </React.Fragment>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
