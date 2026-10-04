@@ -3,7 +3,7 @@
  * 有網絡時先取最新檔案（3 秒內無回應便用快取），所以更新圖片或設定後重新開啟即可看到。
  * 新增檔案時，請一併加進 FILES，並把 CACHE 版本號加一。
  */
-const CACHE = 'xgzl-v1';
+const CACHE = 'xgzl-v2';
 const FILES = [
   './',
   'index.html',
@@ -26,7 +26,8 @@ const FILES = [
   'assets/lamb.svg',
   'assets/tree.svg',
   'assets/log.svg',
-  'assets/rock.svg',
+  'assets/palm.svg',
+  'assets/cart.svg',
 ];
 
 self.addEventListener('install', event => {

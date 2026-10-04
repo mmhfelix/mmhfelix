@@ -8,6 +8,7 @@
   const CONFIG = window.GAME_CONFIG;
   const Core = window.HRDCore;
   const LEVELS = CONFIG.levels;
+  const BOARD = CONFIG.board;
   const KEY_RECORDS = 'xgzl.records.v1';
   const KEY_SETTINGS = 'xgzl.settings.v1';
   const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
@@ -161,8 +162,11 @@
   let drag = null;
   let exitTimer = 0;
 
-  function pieceImage(type, level) {
-    return (level.pieces && level.pieces[type]) || CONFIG.images.pieces[type];
+  // 圖片按形狀（X、V2、H2、V3、H3）；個別關卡可用字母或形狀另行指定
+  function pieceImage(p, level) {
+    const shape = p.target ? 'X' : p.dir.toUpperCase() + p.len;
+    const own = level.pieces || {};
+    return own[p.letter] || own[shape] || CONFIG.images.pieces[shape];
   }
 
   function startJourney() {
@@ -178,7 +182,7 @@
     const level = LEVELS[i];
     game.level = i;
     game.phase = 'ready';
-    game.pieces = Core.parseLayout(level.layout);
+    game.pieces = Core.parseLayout(level.layout, BOARD);
     game.history = [];
     game.steps = 0;
     game.elapsed = 0;
@@ -202,7 +206,7 @@
   }
 
   function clearPieces() {
-    board.textContent = '';
+    board.innerHTML = '<div class="exit-lane" aria-hidden="true"></div>';
     pieceEls.clear();
   }
 
@@ -211,12 +215,12 @@
     const level = LEVELS[game.level];
     for (const p of game.pieces) {
       const el = document.createElement('div');
-      el.className = 'piece' + (p.type === 'B' ? ' lamb' : '') + (appear ? ' appear' : '');
+      el.className = 'piece ' + p.dir + (p.target ? ' lamb' : '') + (appear ? ' appear' : '');
       el.dataset.id = p.id;
-      el.dataset.type = p.type;
+      el.dataset.letter = p.letter;
       const tile = document.createElement('div');
       tile.className = 'tile';
-      tile.style.backgroundImage = cssUrl(pieceImage(p.type, level));
+      tile.style.backgroundImage = cssUrl(pieceImage(p, level));
       el.appendChild(tile);
       board.appendChild(el);
       pieceEls.set(p.id, el);
@@ -248,8 +252,8 @@
     if (app.dataset.screen !== 'game') return;
     const area = $('#board-area').getBoundingClientRect();
     if (!area.width || !area.height) return;
-    // 棋盤 4 × 5 格，加外框及底部出口光暈
-    cell = Math.max(36, Math.floor(Math.min(area.width / 4.3, area.height / 5.65)));
+    // 棋盤格數加外框，底部再留位置給出口光暈
+    cell = Math.max(30, Math.floor(Math.min(area.width / (BOARD.cols + 0.3), area.height / (BOARD.rows + 0.75))));
     $('#game').style.setProperty('--cell', cell + 'px');
     for (const p of game.pieces) placePiece(p, false);
   }
@@ -268,10 +272,10 @@
       fx: (e.clientX - (r.left + r.width / 2)) / (r.width / 2),
       fy: (e.clientY - (r.top + r.height / 2)) / (r.height / 2),
       range: {
-        left: Core.reach(game.pieces, p, -1, 0),
-        right: Core.reach(game.pieces, p, 1, 0),
-        up: Core.reach(game.pieces, p, 0, -1),
-        down: Core.reach(game.pieces, p, 0, 1),
+        left: Core.reach(game.pieces, p, -1, 0, BOARD),
+        right: Core.reach(game.pieces, p, 1, 0, BOARD),
+        up: Core.reach(game.pieces, p, 0, -1, BOARD),
+        down: Core.reach(game.pieces, p, 0, 1, BOARD),
       },
     };
     el.classList.add('dragging');
@@ -283,10 +287,9 @@
     const dy = e.clientY - drag.sy;
     if (!drag.axis) {
       if (Math.hypot(dx, dy) < 10) return;
-      const canX = drag.range.left + drag.range.right > 0;
-      const canY = drag.range.up + drag.range.down > 0;
-      if (Math.abs(dx) >= Math.abs(dy)) drag.axis = canX ? 'x' : canY ? 'y' : 'none';
-      else drag.axis = canY ? 'y' : canX ? 'x' : 'none';
+      // 只可沿長邊方向移動：橫放左右、直放上下
+      const span = drag.p.dir === 'h' ? drag.range.left + drag.range.right : drag.range.up + drag.range.down;
+      drag.axis = span > 0 ? (drag.p.dir === 'h' ? 'x' : 'y') : 'none';
     }
     if (drag.axis === 'none') return;
     const along = drag.axis === 'x' ? dx : dy;
@@ -314,7 +317,7 @@
 
   // 輕按：只有一個方向可移便直接移；多於一個方向時按較接近的一邊
   function tapPiece(d) {
-    const dirs = Core.legalDirections(game.pieces, d.p);
+    const dirs = Core.legalDirections(game.pieces, d.p, BOARD);
     let dir = dirs.length === 1 ? dirs[0] : null;
     if (dirs.length > 1) {
       let best = 0.25;
@@ -341,7 +344,7 @@
     placePiece(p, true);
     Sound.move();
     updateHud();
-    if (Core.isSolved(game.pieces)) levelSolved();
+    if (Core.isSolved(game.pieces, BOARD)) levelSolved();
   }
 
   function undo() {
@@ -360,7 +363,7 @@
     if (game.phase !== 'playing' || !game.history.length) return;
     const ok = await confirmDialog({ title: '重新排列？', body: '方塊會回到本關起點，步數重新計算；用時會繼續計算。', ok: '重新排列' });
     if (!ok || game.phase !== 'playing') return;
-    game.pieces = Core.parseLayout(LEVELS[game.level].layout);
+    game.pieces = Core.parseLayout(LEVELS[game.level].layout, BOARD);
     game.history = [];
     game.steps = 0;
     buildPieces(true);
@@ -436,10 +439,11 @@
     game.elapsed = performance.now() - game.startAt;
     game.results[game.level] = { time: game.elapsed, steps: game.steps };
     stopClock('won');
-    const lamb = game.pieces.find(p => p.type === 'B');
+    // 小羊從底部出口滑出
+    const lamb = game.pieces.find(p => p.target);
     const el = pieceEls.get(lamb.id);
     el.classList.add('exiting');
-    setOffset(el, lamb, 0, cell * 2.2);
+    setOffset(el, lamb, 0, cell * (lamb.h + 0.8));
     const last = game.level === LEVELS.length - 1;
     if (last) Sound.finale(); else Sound.win();
     clearTimeout(exitTimer);
@@ -884,12 +888,17 @@
   function restore(data) {
     if (!data || typeof data.level !== 'number' || !LEVELS[data.level] || !Array.isArray(data.positions)) return false;
     try {
-      const pieces = Core.parseLayout(LEVELS[data.level].layout);
+      const pieces = Core.parseLayout(LEVELS[data.level].layout, BOARD);
       if (pieces.length !== data.positions.length) return false;
-      pieces.forEach((p, i) => { p.x = data.positions[i][0]; p.y = data.positions[i][1]; });
+      for (const [i, p] of pieces.entries()) {
+        const [x, y] = data.positions[i];
+        if ((p.dir === 'h' && y !== p.y) || (p.dir === 'v' && x !== p.x)) return false;
+        p.x = x;
+        p.y = y;
+      }
       const area = pieces.reduce((n, p) => n + p.w * p.h, 0);
-      const filled = Core.encode(pieces).replace(/\./g, '').length;
-      if (filled !== area || pieces.some(p => p.x < 0 || p.y < 0 || p.x + p.w > Core.COLS || p.y + p.h > Core.ROWS)) return false;
+      const filled = Core.encode(pieces, BOARD).replace(/\./g, '').length;
+      if (filled !== area || pieces.some(p => p.x < 0 || p.y < 0 || p.x + p.w > BOARD.cols || p.y + p.h > BOARD.rows)) return false;
       showScreen('game');
       prepareLevel(data.level);
       game.results = Array.isArray(data.results) ? data.results : [];
@@ -912,6 +921,9 @@
     if (booted) return;
     booted = true;
     $('#progress').innerHTML = LEVELS.map(() => '<li></li>').join('');
+    $('#game').style.setProperty('--cols', BOARD.cols);
+    $('#game').style.setProperty('--rows', BOARD.rows);
+    $('#game').style.setProperty('--exit-col', BOARD.exitCol);
     renderSound();
     renderHome();
     if (!restore(data)) showScreen('home');
