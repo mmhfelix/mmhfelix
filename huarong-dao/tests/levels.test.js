@@ -41,3 +41,13 @@ test('離線快取清單包含所有圖片及程式檔', () => {
   const files = [CONFIG.images.home, CONFIG.images.board, CONFIG.images.exit, ...Object.values(CONFIG.images.pieces), ...CONFIG.levels.map(l => l.background), 'js/app.js', 'js/core.js', 'js/config.js', 'css/style.css', 'fonts/serif-600.woff2', 'fonts/serif-900.woff2'];
   for (const f of files) assert.ok(sw.includes(`'${f}'`), `sw.js 未列出 ${f}`);
 });
+
+test('離線快取清單上的每個檔案都存在', () => {
+  const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
+  const list = sw.slice(sw.indexOf('const FILES = ['), sw.indexOf('];')).match(/'([^']+)'/g).map(s => s.slice(1, -1));
+  assert.ok(list.length > 10);
+  for (const f of list) {
+    if (f === './') continue;
+    assert.ok(fs.existsSync(path.join(__dirname, '..', f)), `sw.js 列出的 ${f} 不存在`);
+  }
+});

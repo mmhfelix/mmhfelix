@@ -928,9 +928,10 @@
     boot((hot && hot.data) || {});
   }
 
-  // 離線使用：只在正式網址（HTTPS）註冊
+  // 離線使用：只在正式網站（有 manifest、HTTPS）註冊；預覽頁不註冊
   const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  if ('serviceWorker' in navigator && window.self === window.top && (location.protocol === 'https:' || local)) {
+  const installable = !!document.querySelector('link[rel="manifest"]');
+  if (installable && 'serviceWorker' in navigator && window.self === window.top && (location.protocol === 'https:' || local)) {
     window.addEventListener('load', () => {
       try {
         navigator.serviceWorker.register('sw.js').catch(() => {});
