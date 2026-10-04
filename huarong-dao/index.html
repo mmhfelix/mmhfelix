@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>尋光之旅</title>
+<meta name="theme-color" content="#0b1230">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="尋光之旅">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" lang="zh-Hant-HK">
+
+  <!-- 主頁 -->
+  <section id="home" class="screen">
+    <div class="home-hero">
+      <p class="eyebrow" id="home-subtitle">華容道挑戰 · 共三關</p>
+      <h1 class="title" id="home-title">尋光之旅</h1>
+      <p class="story" id="home-story"></p>
+      <button type="button" class="btn btn-primary btn-xl" id="btn-start">開始挑戰</button>
+      <ol class="howto" id="home-howto"></ol>
+    </div>
+    <aside class="glass leaderboard" aria-labelledby="board-heading">
+      <h2 id="board-heading">龍虎榜</h2>
+      <p class="board-note">完成三關 · 總用時最短者排先</p>
+      <ol class="ranks" id="home-ranks"></ol>
+    </aside>
+  </section>
+
+  <!-- 遊戲 -->
+  <section id="game" class="screen" hidden>
+    <div class="stage">
+      <div class="board-area" id="board-area">
+        <div class="board-frame">
+          <div class="board" id="board"></div>
+          <div class="exit-gap"></div>
+        </div>
+        <div class="exit-glow" id="exit-glow"></div>
+      </div>
+
+      <div class="glass info">
+        <div class="level-head">
+          <span id="level-name">第一關</span>
+          <strong id="level-title">黑夜</strong>
+        </div>
+        <ol class="progress" id="progress" aria-label="關卡進度"><li></li><li></li><li></li></ol>
+        <div class="stat stat-time">
+          <span class="stat-label">用時</span>
+          <span class="stat-value" id="timer">00:00</span>
+        </div>
+        <div class="limit" id="limit">
+          <div class="limit-bar"><i id="limit-fill"></i></div>
+          <span id="limit-text">剩餘 4:00</span>
+        </div>
+        <div class="stat stat-steps">
+          <span class="stat-label">步數</span>
+          <span class="stat-value" id="steps">0</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btn-undo">撤銷一步</button>
+        <button type="button" class="btn" id="btn-reset">重新排列</button>
+        <button type="button" class="btn btn-ghost" id="btn-quit">結束挑戰</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="card-layer" hidden>
+      <div class="card" id="card" role="dialog" aria-modal="true"></div>
+    </div>
+  </section>
+
+  <!-- 管理頁 -->
+  <section id="admin" class="screen" hidden>
+    <div class="admin-wrap">
+      <header class="admin-head">
+        <h2>管理</h2>
+        <button type="button" class="btn" id="btn-admin-close">關閉</button>
+      </header>
+
+      <section class="glass admin-block">
+        <div class="admin-row">
+          <h3 id="admin-count">龍虎榜紀錄</h3>
+          <div class="admin-tools">
+            <button type="button" class="btn" id="btn-export">匯出 CSV</button>
+            <button type="button" class="btn" id="btn-copy">複製 CSV</button>
+            <button type="button" class="btn btn-danger" id="btn-clear">清除全部紀錄</button>
+          </div>
+        </div>
+        <p class="admin-msg" id="admin-msg" role="status"></p>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>名次</th><th>暱稱</th><th>總用時</th><th>總步數</th><th>第一關</th><th>第二關</th><th>第三關</th><th>完成時間</th><th></th></tr></thead>
+            <tbody id="admin-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="glass admin-block">
+        <h3>每關時限</h3>
+        <div class="limits" id="admin-limits"></div>
+        <p class="admin-hint">時限到便結束挑戰。改動會即時儲存在這部機。</p>
+      </section>
+
+      <section class="glass admin-block">
+        <h3>狀態</h3>
+        <p class="admin-hint" id="admin-status"></p>
+      </section>
+    </div>
+  </section>
+
+  <button type="button" class="sound-btn" id="btn-sound" aria-label="關閉音效">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path class="mute" d="M16.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+
+  <!-- 確認視窗 -->
+  <div class="overlay" id="dialog" hidden>
+    <div class="card dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-body"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="dialog-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="dialog-ok">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 閒置提示 -->
+  <div class="overlay" id="idle" hidden>
+    <div class="card">
+      <h2>仍在玩嗎？</h2>
+      <p class="lead">輕按畫面任何位置繼續</p>
+      <p class="meta"><b id="idle-count">15</b> 秒後返回主頁</p>
+    </div>
+  </div>
+
+  <!-- 管理密碼 -->
+  <div class="overlay" id="pin" hidden>
+    <div class="card pin-card">
+      <h2>管理密碼</h2>
+      <div class="pin-dots" id="pin-dots"></div>
+      <div class="pin-pad" id="pin-pad">
+        <button type="button" class="btn" data-key="1">1</button><button type="button" class="btn" data-key="2">2</button><button type="button" class="btn" data-key="3">3</button>
+        <button type="button" class="btn" data-key="4">4</button><button type="button" class="btn" data-key="5">5</button><button type="button" class="btn" data-key="6">6</button>
+        <button type="button" class="btn" data-key="7">7</button><button type="button" class="btn" data-key="8">8</button><button type="button" class="btn" data-key="9">9</button>
+        <button type="button" class="btn btn-ghost" data-key="cancel">取消</button><button type="button" class="btn" data-key="0">0</button><button type="button" class="btn btn-ghost" data-key="back">刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

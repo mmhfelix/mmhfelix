@@ -1,0 +1,16 @@
+{
+  "name": "尋光之旅",
+  "short_name": "尋光之旅",
+  "description": "華容道挑戰 · 共三關",
+  "lang": "zh-Hant-HK",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0b1230",
+  "theme_color": "#0b1230",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
