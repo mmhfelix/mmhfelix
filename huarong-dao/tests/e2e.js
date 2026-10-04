@@ -160,10 +160,10 @@ async function playLevel(page, i) {
       if (i === 0) await shot(page, 'game-level2-start');
     }
   }
-  assert.deepStrictEqual(optimal, [6, 17, 29]);
+  assert.deepStrictEqual(optimal, [6, 17, 21]);
   await page.waitForTimeout(400);
   await shot(page, 'finale');
-  assert.ok((await text(page, '#card')).includes('52'), '總步數應為 52');
+  assert.ok((await text(page, '#card')).includes('44'), '總步數應為 44');
 
   // 暱稱驗證
   await page.click('#name-form button[type="submit"]');
@@ -181,7 +181,7 @@ async function playLevel(page, i) {
   await page.click('#card [data-act="home"]');
   await page.waitForSelector('#home:not([hidden])');
   assert.match(await text(page, '#home-ranks'), /測試小羊/);
-  assert.match(await text(page, '#home-ranks'), /52 步/);
+  assert.match(await text(page, '#home-ranks'), /44 步/);
 
   // 重新載入後紀錄仍在
   await page.reload();
@@ -207,7 +207,7 @@ async function playLevel(page, i) {
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#btn-export')]);
   const csv = fs.readFileSync(await download.path(), 'utf8');
   assert.ok(csv.startsWith('﻿名次,暱稱,總用時(秒),總步數'), 'CSV 標題列');
-  assert.match(csv, /\r\n1,測試小羊,\d+\.\d,52,/);
+  assert.match(csv, /\r\n1,測試小羊,\d+\.\d,44,/);
   await page.click('#admin-limits [data-limit="0"][data-delta="30"]');
   assert.match(await text(page, '#admin-limits'), /4 分 30 秒/);
   await page.click('#admin-limits [data-limit="0"][data-delta="-30"]');

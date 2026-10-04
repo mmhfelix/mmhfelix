@@ -61,14 +61,14 @@ window.GAME_CONFIG = {
     {
       name: '第三關',
       title: '光明',
-      // 參考書中第 212 題，最少 29 步
+      // 參考書中第 166 題，最少 21 步
       layout: [
-        'ABCDDE',
-        'ABCX.E',
-        'AF.XGG',
-        '.FHHI.',
-        '.JJ.I.',
-        'KKK.I.',
+        'AA.XBB',
+        'CDDX..',
+        'C.GEEE',
+        'FFG.HH',
+        'I.G..J',
+        'I.KKKJ',
       ],
       timeLimit: 480,
       background: 'assets/bg-level3.svg',

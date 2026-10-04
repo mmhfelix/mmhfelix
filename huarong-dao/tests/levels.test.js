@@ -29,8 +29,8 @@ CONFIG.levels.forEach((level, i) => {
   });
 });
 
-test('最少步數與參考書相符（011：6、099：17、212：29）', () => {
-  assert.deepStrictEqual(minimums, [6, 17, 29]);
+test('最少步數與參考書相符（011：6、099：17、166：21）', () => {
+  assert.deepStrictEqual(minimums, [6, 17, 21]);
 });
 
 test('每種用到的方塊形狀都有圖片', () => {
